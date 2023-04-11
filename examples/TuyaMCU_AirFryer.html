@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Temperature Control</title>
+      <!-- Bootstrap CSS -->
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" />
+   </head>
+   <body>
+      <div class="container mt-5 text-center">
+         <h1 class="mb-3">OBK BlitzWolf Air Fryer Controller</h1>
+         <p>Simple OpenBeken REST API demonstration</p>
+         <div class="row">
+            <div class="col-md-4 offset-md-4">
+               <div class="card">
+                  <div class="card-body">
+                     <h2 class="card-title mb-4">Fryer State</h2>
+                     <button id="p1" class="btn btn-danger mr-2" onclick="makeRestCall(1,' TOGGLE')">Cook</button>
+                     <button id="p2" class="btn btn-danger" onclick="makeRestCall(2,' TOGGLE')">Power</button>
+                     <h2 class="mt-5" id="countdown-timer">Time Left: ??:??</h2>
+                     <button class="btn btn-primary mr-3" onclick="addTime(1)">Up</button>
+                     <button class="btn btn-primary" onclick="addTime(-1)">Down</button>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div class="row">
+            <div class="col-md-4 offset-md-4">
+               <div class="card">
+                  <div class="card-body">
+                     <h2 class="card-title mb-4">Current Temperature</h2>
+                     <h3 id="temperature">??C</h3>
+                     <h2 class="card-title mb-4">Target Temperature</h2>
+                     <h3 id="target">???C</h3>
+                     <button class="btn btn-primary mr-3" onclick="addTemperature(10)">Up</button>
+                     <button class="btn btn-primary" onclick="addTemperature(-10)">Down</button>
+                  </div>
+               </div>
+            </div>
+         </div>
+      </div>
+      <!-- jQuery and Bootstrap JS -->
+      <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+      <script>
+         var temperature = 200; // set initial temperature to 200
+         var power_state = 0;
+         var cook_state = 0;
+         var time_left = 0;
+         
+         function addTemperature(delta) {
+              fetch(baseURL+'/cm?cmnd=AddChannel 3 '+delta, {
+                method: 'GET'
+              })
+              .then(response => {
+                if (response.ok) {
+                  response.text().then(data => {
+         document.getElementById("target").innerHTML=data+"C";
+                  });
+                }
+              });
+         }
+         function addTime(delta) {
+              fetch(baseURL+'/cm?cmnd=AddChannel 5 '+delta, {
+                method: 'GET'
+              })
+              .then(response => {
+                if (response.ok) {
+                  response.text().then(data => {
+         //document.getElementById("target").innerHTML=data+"C";
+         getTimeLeft();
+                  });
+                }
+              });
+         }
+            let baseURL = "http://192.168.0.195";
+                // Countdown timer function
+                function refreshCountDown(timer) {
+                    let minutes = parseInt(timer / 60, 10);
+                    let seconds = parseInt(timer % 60, 10);
+            
+                    minutes = minutes < 10 ? "0" + minutes : minutes;
+                    seconds = seconds < 10 ? "0" + seconds : seconds;
+            
+                    let display = document.querySelector('#countdown-timer');
+                    display.textContent = "Time Left: " +minutes + ":" + seconds;
+                }
+            
+                // Start the countdown timer when the page loads
+                window.onload = function () {
+                  setInterval(function () {
+            			updateTimer();
+            		}, 1000);
+                  setInterval(function () {
+            			updateTemp();
+            		}, 2000);
+            		makeRestCall(1,"");
+            		makeRestCall(2,"");
+         getTimeLeft();
+         addTemperature(0);
+                };
+            function changeButtonColor(buttonId, colorClass) {
+              const button = document.getElementById(buttonId);
+              button.classList.remove('btn-primary', 'btn-secondary', 'btn-success', 'btn-danger', 'btn-warning', 'btn-info', 'btn-light', 'btn-dark');
+              button.classList.add(colorClass);
+            }
+         function getTimeLeft() {
+         if(cook_state && power_state) {
+              fetch(baseURL+'/cm?cmnd=GetChannel 6', {
+                method: 'GET'
+              })
+              .then(response => {
+                if (response.ok) {
+                  response.text().then(data => {
+         time_left = parseInt(data);
+                  });
+                }
+              });
+         } else {
+              fetch(baseURL+'/cm?cmnd=GetChannel 5', {
+                method: 'GET'
+              })
+              .then(response => {
+                if (response.ok) {
+                  response.text().then(data => {
+         time_left = parseInt(data)*60;
+                  });
+                }
+              });
+         }
+         }
+            function updateTimer() {
+         /*
+              fetch(baseURL+'/cm?cmnd=GetChannel 4', {
+                method: 'GET'
+              })
+              .then(response => {
+                if (response.ok) {
+                  response.text().then(data => {
+         document.getElementById("temperature").innerHTML=data+"C";
+                  });
+                }
+              });*/
+         if(power_state && cook_state) {
+         time_left--;
+         }
+         refreshCountDown(parseInt(time_left));
+         
+         }
+            function updateTemp() {
+         fetch(baseURL+'/cm?cmnd=GetChannel 4', {
+                method: 'GET'
+              })
+              .then(response => {
+                if (response.ok) {
+                  response.text().then(data => {
+         document.getElementById("temperature").innerHTML=data+"C";
+                  });
+                }
+              })
+            }
+            
+            // REST POST call function
+            function makeRestCall(idx, val) {
+              fetch(baseURL+'/cm?cmnd=POWER'+idx+val, {
+                method: 'GET'
+              })
+              .then(response => {
+                if (response.ok) {
+                  response.json().then(data => {
+           power_state = data.POWER2== "ON";
+         cook_state = data.POWER1== "ON";
+                    changeButtonColor("p1", cook_state ? "btn-success" : "btn-danger");
+                    changeButtonColor("p2", power_state ? "btn-success" : "btn-danger");
+                    //alert('REST POST call succeeded! POWER1 value is ' + power1Value);
+                  });
+                } else {
+                  alert('REST POST call failed.');
+                }
+              })
+              .catch(error => {
+                alert('An error occurred: ' + error);
+              });
+            }
+      </script>
+   </body>
+</html>
