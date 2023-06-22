@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Radar Control</title>
+      <!-- Bootstrap CSS -->
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" />
+   </head>
+   <body>
+		<div class="container mt-5 text-center">
+		   <h1 class="mb-3">OBK TuyaMCU Radar Sensor Controller</h1>
+		   <p>Simple OpenBeken REST API demonstration</p>
+			<div class="row">
+			   <div class="col-md-4 offset-md-4">
+				  <div class="card">
+					 <div class="card-body">
+						<h2 class="card-title mb-4">Sensor Results</h2>
+						<div class="mt-5">
+						   <label for="max-distance">Presence: <strong id="presence">?</strong></label>
+						</div>
+						<div class="mt-3">
+						   <label for="min-distance">Lux: <strong id="lux">?</strong></label>
+						</div>
+						<div class="mt-3">
+						   <label for="sensitivity">Meters: <strong id="meters">?</strong></label>
+						</div>
+					 </div>
+				  </div>
+			   </div>
+			</div>
+
+		   <div class="row">
+			  <div class="col-md-4 offset-md-4">
+				 <div class="card">
+					<div class="card-body">
+					   <h2 class="card-title mb-4">Configure Sensor</h2>
+					   <div class="mt-5">
+						  <label for="max-distance">Maximum Distance:</label>
+						  <input type="range" class="form-range" id="max-distance" min="0" max="1000" value="500" onchange="onChange_Max(this.value)">
+					   </div>
+					   <div class="mt-3">
+						  <label for="min-distance">Minimum Distance:</label>
+						  <input type="range" class="form-range" id="min-distance" min="0" max="1000" value="250" onchange="onChange_Min(this.value)">
+					   </div>
+					   <div class="mt-3">
+						  <label for="sensitivity">Sensitivity:</label>
+						  <input type="range" class="form-range" id="sensitivity" min="0" max="9" value="5" onchange="onChange_Sens(this.value)">
+					   </div>
+					</div>
+				 </div>
+			  </div>
+		   </div>
+		</div>
+		<div class="container mt-4 text-center">
+		   <a href="/">Back to Main Page</a>
+		</div>
+
+      <!-- jQuery and Bootstrap JS -->
+      <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js"></script>
+      <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js"></script>
+      <script>
+         var temperature = 200; // set initial temperature to 200
+         var power_state = 0;
+         var cook_state = 0;
+         var time_left = 0;
+         
+		 // for using on LFS of OBK, keep it empty
+		 // for testing on PC, enter IP like http://192.168.0.213
+		 // When using on OBK , create lfs file cfg.html and access it like:
+		 // http://192.168.0.213/api/lfs/cfg.html
+         let baseURL = "";
+         //let baseURL = "http://192.168.0.213";
+			
+			let channel_presence = 4;
+			let channel_lux = 5;
+			let channel_meters = 6;
+			let channel_dist_min = 1;
+			let channel_dist_max = 2;
+			let channel_sens = 3;
+         
+         // Function to update the minimum distance value
+		function onChange_Min(val) {
+			setChannel(channel_dist_min, val);
+		}
+         
+         // Function to update the maximum distance value
+		function onChange_Max(val) {
+			setChannel(channel_dist_max, val);
+		}
+         
+         // Function to update the sensitivity value
+		function onChange_Sens(val) {
+			setChannel(channel_sens, val);
+		}
+         
+		// Function to set a channel value through a REST API call
+		function setChannel(ch, val) {
+			console.log("Sending new value to OBK API, changes channel " + ch + " to " + val);
+			fetch(baseURL + '/cm?cmnd=SetChannel ' + ch + ' ' + val, {
+				method: 'GET'
+			})
+			.then(response => {
+				if (response.ok) {
+					response.text().then(data => {
+						console.log("OK");
+						// Handle successful response
+						// Do something with the received data if needed
+					});
+				} else {
+					throw new Error('Network response was not ok');
+				}
+			})
+			.catch(error => {
+				// Handle fetch error or error during response processing
+				console.error('Error:', error);
+			});
+		}
+            
+		// Function to retrieve channel values from the REST API
+		function getChannels() {
+			fetch(baseURL + '/cm?cmnd=Ch', {
+				method: 'GET'
+			})
+			.then(response => {
+				response.json().then(data => {
+					console.log(data);
+					const dist_min = data['Ch' + channel_dist_min];
+					const dist_max = data['Ch' + channel_dist_max];
+					const sens = data['Ch' + channel_sens];
+					console.log("Cur values received correctly!");
+					document.getElementById('min-distance').value = dist_min;
+					document.getElementById('max-distance').value = dist_max;
+					document.getElementById('sensitivity').value = sens;
+					const presence = data['Ch' + channel_presence];
+					const lux = data['Ch' + channel_lux];
+					const meters = data['Ch' + channel_meters];
+					document.getElementById('presence').innerText = presence;
+					document.getElementById('lux').innerText = lux;
+					document.getElementById('meters').innerText = meters;
+				});
+			});
+		}
+
+		// Start the countdown timer when the page loads
+		window.onload = function () {
+			getChannels();
+			setInterval(getChannels,1000);
+		};
+      </script>
+   </body>
+</html>
