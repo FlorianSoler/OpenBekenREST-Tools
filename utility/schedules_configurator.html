@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule Configuration</title>
+  <!-- Bootstrap CSS -->
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" />
+</head>
+<body class="container mt-5 text-center">
+  <h1 class="mb-3">Schedules Configurator</h1>
+
+  <form id="scheduleForm">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Sun</th>
+          <th scope="col">Mon</th>
+          <th scope="col">Tue</th>
+          <th scope="col">Wed</th>
+          <th scope="col">Thu</th>
+          <th scope="col">Fri</th>
+          <th scope="col">Sat</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><label for="sunday"><input type="checkbox" id="sunday" value="0"></label></td>
+          <td><label for="monday"><input type="checkbox" id="monday" value="1"></label></td>
+          <td><label for="tuesday"><input type="checkbox" id="tuesday" value="2"></label></td>
+          <td><label for="wednesday"><input type="checkbox" id="wednesday" value="3"></label></td>
+          <td><label for="thursday"><input type="checkbox" id="thursday" value="4"></label></td>
+          <td><label for="friday"><input type="checkbox" id="friday" value="5"> </label></td>
+          <td><label for="saturday"><input type="checkbox" id="saturday" value="6"></label></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <label for="time">Enter Time (HH:mm:ss):</label>
+    <input type="text" id="time" class="form-control" placeholder="Enter time (e.g., 12:30:00)">
+
+    <label for="command">Enter Command:</label>
+    <input type="text" id="command" class="form-control" placeholder="Enter command">
+
+    <label for="id">Enter ID (optional):</label>
+    <input type="text" id="id" class="form-control" placeholder="Enter ID" pattern="^[1-9][0-9]*$" title="Please enter a positive integer for ID.">
+    <div class="form-group mt-3"></div>
+      <button type="button" class="btn btn-primary" onclick="generateCommand()">Generate Command</button>
+    </div>
+
+    <div id="errorMessage" class="mt-3"></div>
+
+    <div class="form-group mt-3">
+      <label for="generatedContent">Generated Content:</label>
+      <textarea class="form-control" id="generatedContent" rows="4" readonly></textarea>
+    </div>
+
+    <div class="form-group mt-3">
+      <button type="button" class="btn btn-primary mr-auto" onclick="addToSandbox('begin')">Add at the Beginning</button>
+      <button type="button" class="btn btn-primary mr-auto" onclick="addToSandbox('end')">Add at the End</button>
+      <button type="button" class="btn btn-success mr-auto" onclick="copyToClipboard()">Copy</button>
+    </div>
+
+    <div class="form-group mt-3">
+      <label for="sandbox">Script Sandbox:</label>
+      <textarea class="form-control" id="sandbox" rows="4"></textarea>
+    </div>
+
+  </form>
+
+  <script>
+    function generateCommand() {
+      const selectedDays = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(checkbox => checkbox.value);
+      const timeInput = document.getElementById('time');
+      let time = timeInput.value.trim();
+
+      if (time && time.indexOf(':') !== -1 && time.split(':').length === 2) {
+        time += ':00';
+      }
+
+      const command = document.getElementById('command').value.trim();
+      let id = document.getElementById('id').value.trim();
+
+      const errorMessageElement = document.getElementById('errorMessage');
+      const generatedContentTextarea = document.getElementById('generatedContent');
+
+      errorMessageElement.textContent = '';
+
+      if (selectedDays.length === 0 || !time || !command) {
+        errorMessageElement.textContent = 'Please fill in all required fields.';
+        generatedContentTextarea.value = '';
+        return;
+      }
+
+      const idRegex = /^[1-9][0-9]*$/;
+      if (id && !idRegex.test(id)) {
+        errorMessageElement.textContent = 'Please enter a positive integer for ID.';
+        generatedContentTextarea.value = '';
+        return;
+      }
+
+      if (!id) {
+        id = Math.floor(Math.random() * 1000).toString();
+      }
+
+      const bitFlag = selectedDays.reduce((flag, day) => flag | (1 << parseInt(day, 10)), 0);
+
+      const generatedCommand = `addClockEvent ${time} 0x${bitFlag.toString(16)} ${id} ${command}`;
+      const generatedComment = `// trigger on ${selectedDays.map(day => getDayName(day)).join(', ')} at ${time}`;
+
+      const generatedContent = `${generatedCommand}\n${generatedComment}`;
+      generatedContentTextarea.value = generatedContent;
+    }
+
+    function copyToClipboard() {
+      const generatedContentTextarea = document.getElementById('generatedContent');
+      generatedContentTextarea.select();
+      document.execCommand('copy');
+    }
+
+    function addToSandbox(position) {
+      const sandboxTextarea = document.getElementById('sandbox');
+      const generatedContentTextarea = document.getElementById('generatedContent');
+      const generatedContent = generatedContentTextarea.value.trim();
+      const sandboxContent = sandboxTextarea.value.trim();
+
+      if (position === 'end') {
+        sandboxTextarea.value = `${sandboxContent}\n${generatedContent}`;
+      } else if (position === 'begin') {
+        sandboxTextarea.value = `${generatedContent}\n${sandboxContent}`;
+      }
+    }
+
+    function getDayName(day) {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      return days[parseInt(day, 10)];
+    }
+  </script>
+</body>
+</html>
